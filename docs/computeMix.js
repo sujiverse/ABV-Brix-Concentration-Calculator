@@ -49,6 +49,11 @@ function computeMix(items, opts = {}) {
       density = density ?? DENSITY.water;
       mass = it.inputUnit === 'g' ? it.amount : it.amount * density;
       vol  = it.inputUnit === 'mL' ? it.amount : it.amount / density;
+      // 물에도 당분이 있을 수 있음 (설탕물 등)
+      if (it.brix && it.brix > 0) {
+        const sugarInWater = mass * (it.brix / 100);
+        sugarMass += sugarInWater;
+      }
     } else if (it.type === 'spirit') {
       const approx = 0.998 - 0.0026 * (it.abvPct ?? 0);
       density = density ?? Math.max(0.79, approx);
@@ -56,6 +61,11 @@ function computeMix(items, opts = {}) {
       vol  = it.inputUnit === 'mL' ? it.amount : it.amount / density;
       const ethMass = mass * (it.abvPct / 100) * (DENSITY.ethanol / density);
       ethanolMass += ethMass;
+      // 술에도 당분이 있을 수 있음 (리큐어, 단맛 와인 등)
+      if (it.brix && it.brix > 0) {
+        const sugarInSpirit = mass * (it.brix / 100);
+        sugarMass += sugarInSpirit;
+      }
     } else if (it.type === 'sugar_dry') {
       mass = it.inputUnit === 'g' ? it.amount : it.amount * (it.densityForVolume ?? DENSITY.sugarDry);
       if (!opts.ignoreSugarSolidVolume) {
@@ -77,6 +87,11 @@ function computeMix(items, opts = {}) {
         mass = it.inputUnit === 'g' ? it.amount : it.amount * density;
         vol  = it.inputUnit === 'mL' ? it.amount : it.amount / density;
         // if needed: mass *= purity;
+        // 글리세린에도 당분이 있을 수 있음
+        if (it.brix && it.brix > 0) {
+          const sugarInGlycerin = mass * (it.brix / 100);
+          sugarMass += sugarInGlycerin;
+        }
       } else if (it.type === 'fruit') {
         // 과일/과일주스: 기본 밀도 1.05, 당도 10-15°Bx 가정
         density = density ?? 1.05;
@@ -89,12 +104,22 @@ function computeMix(items, opts = {}) {
         density = density ?? 0.5;
         mass = it.inputUnit === 'g' ? it.amount : it.amount * density;
         vol = 0; // 마른 약재는 체적에 포함하지 않음
+        // 약재에도 당분이 있을 수 있음
+        if (it.brix && it.brix > 0) {
+          const sugarInHerb = mass * (it.brix / 100);
+          sugarMass += sugarInHerb;
+        }
       } else { // other
       density = it.density;
       mass = it.inputUnit === 'g' ? it.amount : it.amount * density;
       vol  = it.inputUnit === 'mL' ? it.amount : it.amount / density;
       if (it.sugarFrac) sugarMass += mass * it.sugarFrac;
       if (it.ethanolFrac) ethanolMass += mass * it.ethanolFrac;
+      // 기타 재료도 브릭스로 당분 계산 가능
+      if (!it.sugarFrac && it.brix && it.brix > 0) {
+        const sugarInOther = mass * (it.brix / 100);
+        sugarMass += sugarInOther;
+      }
     }
 
     totalMass += mass;
