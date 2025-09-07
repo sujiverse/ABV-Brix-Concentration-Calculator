@@ -1,10 +1,28 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>농도 계산기 (ABV · 당도)</title>
-  <link rel="stylesheet" href="./styles.css">
+  <meta charset="utf-8" />
+  <title>ABV · Brix Concentration Calculator</title>
+
+  <!-- 기본/SEO -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="ABV & Brix Calculator — mix spirits, water, sugar/glycerin; get final ABV and true/apparent °Bx." />
+
+  <!-- 아이콘/스타일 -->
+  <link rel="icon" href="./favicon.ico" />
+  <link rel="stylesheet" href="./styles.css?v=20250908" />
+
+  <!-- 색/OG -->
+  <meta name="theme-color" content="#0f172a" />
+  <meta property="og:title" content="ABV · Brix Concentration Calculator" />
+  <meta property="og:description" content="Mix inputs and get final ABV and Brix (true & refractometer)." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://sujiverse.github.io/ABV-Brix-Concentration-Calculator/" />
+  <!-- <meta property="og:image" content="https://.../og.png" /> -->
+
+  <!-- 스크립트 -->
+  <script src="./computeMix.js?v=20250908" defer></script>
+  <script src="./app.js?v=20250908" defer></script>
 </head>
 <body>
   <main class="container">
@@ -192,6 +210,7 @@
   
 </body>
 </html>
+
 
 
 
