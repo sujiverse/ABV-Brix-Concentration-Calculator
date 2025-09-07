@@ -354,13 +354,23 @@
   function renderLogs() {
     const logs = loadLogs();
     if (!logs.length) { logListEl.innerHTML = '<p class="notes">저장된 로그가 없습니다.</p>'; return; }
-    // 동적 컬럼 생성: 모든 로그의 재료명을 수집
-    const ingredientNames = Array.from(new Set(logs.flatMap(l => (l.rows||[]).map(r => r.name || '무명'))));
+    // 동적 컬럼 생성: 모든 로그의 재료명을 수집하고 각 재료의 단위도 수집
+    const ingredientInfo = new Map();
+    logs.forEach(l => {
+      (l.rows || []).forEach(r => {
+        const name = r.name || '무명';
+        const unit = r.inputUnit || 'mL';
+        if (!ingredientInfo.has(name)) {
+          ingredientInfo.set(name, unit);
+        }
+      });
+    });
+    const ingredientNames = Array.from(ingredientInfo.keys());
     // 테이블 구성
     const table = document.createElement('table');
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    ['시간', '이름', '코멘트', ...ingredientNames.map(n => `${n}(mL)`), 'ABV(%)', 'True °Bx', 'Apparent °Bx', '적용', '삭제']
+    ['시간', '이름', '코멘트', ...ingredientNames.map(n => `${n}(${ingredientInfo.get(n)})`), 'ABV(%)', 'True °Bx', 'Apparent °Bx', '적용', '삭제']
       .forEach(h => { const th = document.createElement('th'); th.textContent = h; headerRow.appendChild(th); });
     thead.appendChild(headerRow);
     table.appendChild(thead);
@@ -372,25 +382,13 @@
       const base = [ts, log.name || '(무제)', log.comment || ''];
       base.forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
 
-      // compute per-ingredient volume using computeMix on saved rows
+      // compute per-ingredient original input amount
       const byName = Object.create(null);
-      try {
-        const { computeMix } = window.computeMixModule || {};
-        if (computeMix) {
-          const savedRows = (log.rows || []).map(r => ({
-            type: r.type || 'water',
-            name: r.name || '무명',
-            inputUnit: r.inputUnit || 'mL',
-            amount: parseFloat(r.amount) || 0,
-            abvPct: parseFloat(r.abvPct) || 0,
-            brix: parseFloat(r.brix) || 0,
-          }));
-          const mixRes = computeMix(savedRows, { ignoreSugarSolidVolume: true });
-          (mixRes.breakdown || []).forEach(b => {
-            byName[b.name] = (byName[b.name] || 0) + (parseFloat(b.vol_mL) || 0);
-          });
-        }
-      } catch {}
+      (log.rows || []).forEach(r => {
+        const name = r.name || '무명';
+        const amount = parseFloat(r.amount) || 0;
+        byName[name] = (byName[name] || 0) + amount;
+      });
       ingredientNames.forEach(n => {
         const td = document.createElement('td');
         const val = byName[n] ? fmt(byName[n]) : '';
@@ -462,29 +460,28 @@
   function exportLogsToCsv() {
     const logs = loadLogs();
     if (!logs.length) return;
-    const ingredientNames = Array.from(new Set(logs.flatMap(l => (l.rows||[]).map(r => r.name || '무명'))));
-    const headers = ['시간','이름','코멘트', ...ingredientNames.map(n=>`${n}(mL)`),'ABV(%)','True °Bx','Apparent °Bx'];
+    // 모든 로그의 재료명을 수집하고 각 재료의 단위도 수집
+    const ingredientInfo = new Map();
+    logs.forEach(l => {
+      (l.rows || []).forEach(r => {
+        const name = r.name || '무명';
+        const unit = r.inputUnit || 'mL';
+        if (!ingredientInfo.has(name)) {
+          ingredientInfo.set(name, unit);
+        }
+      });
+    });
+    const ingredientNames = Array.from(ingredientInfo.keys());
+    const headers = ['시간','이름','코멘트', ...ingredientNames.map(n=>`${n}(${ingredientInfo.get(n)})`),'ABV(%)','True °Bx','Apparent °Bx'];
     const rows = [headers];
     logs.forEach(log => {
       const base = [new Date(log.ts).toLocaleString(), log.name || '', log.comment || ''];
       const byName = Object.create(null);
-      try {
-        const { computeMix } = window.computeMixModule || {};
-        if (computeMix) {
-          const savedRows = (log.rows || []).map(r => ({
-            type: r.type || 'water',
-            name: r.name || '무명',
-            inputUnit: r.inputUnit || 'mL',
-            amount: parseFloat(r.amount) || 0,
-            abvPct: parseFloat(r.abvPct) || 0,
-            brix: parseFloat(r.brix) || 0,
-          }));
-          const mixRes = computeMix(savedRows, { ignoreSugarSolidVolume: true });
-          (mixRes.breakdown || []).forEach(b => {
-            byName[b.name] = (byName[b.name] || 0) + (parseFloat(b.vol_mL) || 0);
-          });
-        }
-      } catch {}
+      (log.rows || []).forEach(r => {
+        const name = r.name || '무명';
+        const amount = parseFloat(r.amount) || 0;
+        byName[name] = (byName[name] || 0) + amount;
+      });
       const vols = ingredientNames.map(n => byName[n] ? String((Math.round(byName[n]*100)/100)) : '');
       const abvVal = log.result ? (log.result.finalAbvPercent ?? log.result.abvPct) : undefined;
       const trueVal = log.result ? (log.result.trueBx ?? log.result.finalBrix) : undefined;
