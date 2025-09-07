@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>농도 계산기 (ABV · 당도)</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="container">
+    <h1>농도 계산기</h1>
+    <p class="subtitle">여러 재료(술, 물, 시럽 등)를 섞어 최종 알코올 도수와 당도(°Bx)를 계산합니다.</p>
+
+    <section class="controls">
+      <div class="row header">
+        <div>종류</div>
+        <div>이름</div>
+        <div>양</div>
+        <div>단위</div>
+        <div>도수(%)</div>
+        <div>당도(°Bx)</div>
+        <div></div>
+      </div>
+      <div id="ingredients"></div>
+      <div class="actions">
+        <button id="addRow">행 추가</button>
+        <button id="clearAll" class="secondary">초기화</button>
+      </div>
+    </section>
+
+    <section class="minimal-options">
+      <h2>옵션</h2>
+      
+      <!-- 건설탕 체적 제외 -->
+      <div class="option-row">
+        <div class="option-content">
+          <label for="optIgnoreSugarVol" class="option-label">
+            건설탕 체적 제외 <span class="badge">권장</span>
+          </label>
+          <p class="option-desc">
+            설탕이 녹을 때 발생하는 수축을 감안하여 <strong>총부피 계산</strong>에서 고형 설탕의 체적을 제외합니다.
+          </p>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="checkbox" id="optIgnoreSugarVol" checked class="toggle-input" />
+          <label for="optIgnoreSugarVol" class="toggle-label">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 겉보기 당도 모드 -->
+      <div class="option-row">
+        <div class="option-content">
+          <label for="optApparentMode" class="option-label">
+            겉보기 당도(굴절계) 모드
+          </label>
+          <p class="option-desc">
+            설탕 외 성분(글리세린·에탄올)이 °Bx에 미치는 영향을 보정합니다. <strong>실제 당도</strong>(설탕 g/100g)와
+            <strong>겉보기 당도</strong>(굴절계 값)를 구분해 표시합니다.
+          </p>
+        </div>
+        <div class="toggle-wrapper">
+          <input type="checkbox" id="optApparentMode" class="toggle-input" />
+          <label for="optApparentMode" class="toggle-label">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 계수 입력 -->
+      <div class="coeffs-grid">
+        <div class="field-wrapper">
+          <label for="optAGly" class="field-label">a_gly (기본 0)</label>
+          <p class="field-hint">글리세린 보정계수</p>
+          <input id="optAGly" type="number" step="0.01" placeholder="0" class="field-input" disabled />
+        </div>
+        <div class="field-wrapper">
+          <label for="optAEth" class="field-label">a_eth (기본 0)</label>
+          <p class="field-hint">에탄올 보정계수</p>
+          <input id="optAEth" type="number" step="0.01" placeholder="0" class="field-input" disabled />
+        </div>
+      </div>
+
+      <!-- 도움말 -->
+      <details class="help-section">
+        <summary class="help-summary">캘리브레이션 가이드 (a_gly, a_eth)</summary>
+        <ol class="help-list">
+          <li>물에 글리세린을 <strong>질량 10%</strong>가 되도록 섞고 굴절계 °Bx를 측정합니다 → <code>a_gly = 측정°Bx / 10</code>.</li>
+          <li>물에 에탄올을 <strong>질량 10%</strong>로 섞어 측정합니다 → <code>a_eth = Δ°Bx / 10</code> (장비에 따라 양/음 가능).</li>
+          <li>항상 같은 온도에서 측정하세요(권장 20 ℃). 한 번 구한 값은 동일 조건에서 재사용합니다.</li>
+        </ol>
+      </details>
+    </section>
+
+    <section class="presets">
+      <h2>빠른 추가</h2>
+      <div class="preset-list">
+        <button data-preset="water" class="chip">물 추가</button>
+        <button data-preset="vodka40" class="chip">술(보드카 40%)</button>
+        <button data-preset="wine12" class="chip">술(와인 12%)</button>
+        <button data-preset="syrup1to1" class="chip">설탕 시럽(50 °Bx)</button>
+        <button data-quick="sugar" class="chip">건설탕</button>
+        <button data-quick="glycerin" class="chip">글리세린</button>
+        <button data-quick="fruit" class="chip">과일/과일주스</button>
+        <button data-quick="herb" class="chip">마른 약재</button>
+        <button data-quick="other" class="chip">기타(밀도 입력)</button>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <input id="customPresetName" placeholder="프리셋 이름(예: 내 기본 레시피)" />
+        <button id="addCustomPresetBtn">현재 혼합을 프리셋에 추가</button>
+      </div>
+      <div id="customPresetList" style="margin-top:8px"></div>
+    </section>
+
+    <section class="presets">
+      <h2>사용자 정의 종류 추가</h2>
+      <div class="row">
+        <input id="customTypeLabel" placeholder="종류 이름(예: 꿀시럽)" />
+        <select id="customTypeBase">
+          <option value="water">물</option>
+          <option value="spirit">술(도수%)</option>
+          <option value="sugar_dry">건설탕(g)</option>
+          <option value="syrup">설탕 시럽(°Bx)</option>
+          <option value="glycerin">글리세린</option>
+          <option value="fruit">과일/과일주스</option>
+          <option value="herb">마른 약재</option>
+          <option value="other">기타(밀도·질량)</option>
+        </select>
+        <button id="addCustomTypeBtn">종류 추가</button>
+        <div></div>
+        <div></div>
+        <div></div>
+        <div></div>
+      </div>
+      <div id="customTypeChips" class="preset-list" style="margin-top:8px"></div>
+    </section>
+
+    <section class="results">
+      <h2>결과</h2>
+      <div class="result-grid">
+        <div>
+          <div class="label">총 부피</div>
+          <div id="totalVolume" class="value">0 mL</div>
+        </div>
+        <div>
+          <div class="label">최종 ABV</div>
+          <div id="finalAbv" class="value">0 %</div>
+        </div>
+        <div>
+          <div class="label">True °Bx</div>
+          <div id="finalTrueBrix" class="value">0 °Bx</div>
+        </div>
+        <div>
+          <div class="label">Apparent °Bx</div>
+          <div id="finalApparentBrix" class="value">-</div>
+        </div>
+        <div>
+          <div class="label">병 용량(mL)</div>
+          <input id="bottleSize" type="number" placeholder="예: 375 또는 500" />
+        </div>
+        <div>
+          <div class="label">총 생산량(병)</div>
+          <div id="bottleCount" class="value">-</div>
+        </div>
+        <div>
+          <div class="label">잔량(mL)</div>
+          <div id="bottleRemainder" class="value">-</div>
+        </div>
+      </div>
+      <p class="notes">
+        가정: 부피는 단순 합으로 계산합니다(부피 수축 무시). °Bx는 설탕 g/100g에 대응하는 척도로, 여기서는
+        각 재료의 °Bx를 당질 비율로 보고 질량-가중 평균으로 근사합니다. 밀도 보정이 없어 고도 당류 용액에서는 오차가 있을 수 있습니다.
+      </p>
+    </section>
+
+    <section class="results">
+      <h2>로그</h2>
+      <div class="row">
+        <input id="logName" placeholder="로그 이름(선택)" />
+        <input id="logComment" placeholder="코멘트(선택)" />
+        <button id="saveLogBtn">저장하기</button>
+        <button id="clearLogsBtn" class="secondary">전체 로그 삭제</button>
+        <button id="exportCsvBtn" class="secondary">CSV 내보내기</button>
+      </div>
+      <div id="logList" style="margin-top:8px"></div>
+    </section>
+  </main>
+
+  <script src="./computeMix.js"></script>
+  <script src="./app.js"></script>
+  
+</body>
+</html>
+
+
+
